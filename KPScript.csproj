@@ -10,7 +10,7 @@
     <RootNamespace>KPScript</RootNamespace>
     <AssemblyName>KPScript</AssemblyName>
     <SignAssembly>true</SignAssembly>
-    <AssemblyOriginatorKeyFile>KPScript.pfx</AssemblyOriginatorKeyFile>
+    <AssemblyOriginatorKeyFile>KPScript.snk</AssemblyOriginatorKeyFile>
     <FileUpgradeFlags>
     </FileUpgradeFlags>
     <OldToolsVersion>2.0</OldToolsVersion>
