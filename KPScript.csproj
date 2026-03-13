@@ -38,7 +38,7 @@
   <ItemGroup>
     <Reference Include="KeePass, Version=2.0.0.28168, Culture=neutral, PublicKeyToken=7952fc8ece49a093, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\KeePass_2\Build\KeePass_Distrib\KeePass.exe</HintPath>
+      <HintPath>ReferenceAssemblies\KeePass-2.61\KeePass.exe</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core">
