@@ -1,0 +1,35 @@
+name: Windows Build
+
+on:
+  push:
+    branches:
+      - next
+      - 'feat/**'
+  pull_request:
+    branches:
+      - next
+      - 'feat/**'
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Add msbuild to PATH
+        uses: microsoft/setup-msbuild@v2
+        with:
+          # VS2022 (note: 64bit)
+          vs-version: '[17.0,18.0)'
+          msbuild-architecture: x64
+          # VS2019 (note: 32bit)
+          #vs-version: '[16.0,17.0)'
+          #msbuild-architecture: x86
+
+      - name: Build
+        # Available tools versions are "Current", "2.0", "3.5", "4.0".
+        # -verbosity:diag
+        run: MSBuild.exe KPScript.sln -tv:4.0 -t:rebuild -p:Configuration=Release -p:SignAssembly=false
+
