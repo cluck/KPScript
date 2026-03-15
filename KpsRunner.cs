@@ -51,18 +51,18 @@ namespace KPScript
 			"public static class ThisScript {";
 		private const string CsPost = "} }";
 
-		public static void RunScriptFile(string strFile)
+		public static int RunScriptFile(string strFile, string[] args)
 		{
 			string strScript = File.ReadAllText(strFile);
-			RunScript(strScript);
+			return RunScript(strScript, args);
 		}
 
-		public static void RunScript(string strScript)
+		public static int RunScript(string strScript, string[] args)
 		{
-			RunCSharpScript(strScript);
+			return RunCSharpScript(strScript, args);
 		}
 
-		private static void RunCSharpScript(string strScript)
+		private static int RunCSharpScript(string strScript, string[] args)
 		{
 			string[] vUsing = CsUsing.Split(new string[] { "\r\n" },
 				StringSplitOptions.None);
@@ -89,25 +89,46 @@ namespace KPScript
 			cp.TreatWarningsAsErrors = true;
 			cp.WarningLevel = 4;
 
-			CompilerResults cr = cscp.CompileAssemblyFromSource(cp, str);
-
-			if(cr.Errors.HasErrors)
+			int retVal = 1;
+			 try
 			{
-				StringBuilder sbErrors = new StringBuilder();
-				foreach(CompilerError ce in cr.Errors)
-					sbErrors.AppendLine((ce.Line - nLineOffset).ToString() +
-						": " + ce.ErrorText);
+				CompilerResults cr = cscp.CompileAssemblyFromSource(cp, str);
 
-				throw new Exception(sbErrors.ToString());
+				if(cr.Errors.HasErrors)
+				{
+					StringBuilder sbErrors = new StringBuilder();
+					foreach(CompilerError ce in cr.Errors)
+						sbErrors.AppendLine((ce.Line - nLineOffset).ToString() +
+							": " + ce.ErrorText);
+
+					throw new Exception(sbErrors.ToString());
+				}
+
+				Assembly asm = cr.CompiledAssembly;
+
+				Module m = asm.GetModules(false)[0];
+				Type t = m.GetType("KeePass.Scripting.ThisScript");
+				object[] callParams = null;
+				MethodInfo methodInfo = t.GetMethod("Main", new Type[] { typeof(string[]) });
+				if (methodInfo == null)
+					methodInfo = t.GetMethod("Main");
+				else
+					callParams = new object[] { args };
+
+				if (methodInfo.ReturnType == typeof(int))
+					retVal = (int)(methodInfo.Invoke(null, callParams));
+				else
+				{
+					methodInfo.Invoke(null, callParams);
+					retVal = 0;
+				}
+			}
+			finally
+			{
+				File.Delete(cp.OutputAssembly);
 			}
 
-			Assembly asm = cr.CompiledAssembly;
-
-			Module m = asm.GetModules(false)[0];
-			Type t = m.GetType("KeePass.Scripting.ThisScript");
-			t.GetMethod("Main").Invoke(null, null);
-
-			File.Delete(cp.OutputAssembly);
+			return retVal;
 		}
 	}
 }

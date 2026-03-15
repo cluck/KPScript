@@ -75,14 +75,27 @@ namespace KPScript
 
 				CommandLineArgs cmdArgs = new CommandLineArgs(args);
 				string strFile = cmdArgs.FileName;
+				int retval = 0;
 
 				if((strFile != null) && strFile.EndsWith(ScriptFileSuffix,
 					StrUtil.CaseIgnoreCmp))
-					KpsRunner.RunScriptFile(strFile);
+				{
+					string[] kpsArgs = new string[args.Length - 1];
+					Array.Copy(args, 1, kpsArgs, 0, args.Length - 1);
+					retval = KpsRunner.RunScriptFile(strFile, kpsArgs);
+				}
 				else RunScriptLine(cmdArgs);
 
-				WriteLineColored("OK: " + KSRes.OperationSuccessful, ConsoleColor.Green);
-				return ReturnCodeSuccess;
+				if (retval == 0)
+					WriteLineColored("OK: " + KSRes.OperationSuccessful, ConsoleColor.Green);
+				else
+					WriteLineColored(String.Format(
+							"E: {0} ({1})",
+							KSRes.OperationSuccessful,
+							retval
+						), ConsoleColor.Yellow);
+
+				return retval;
 			}
 			catch(Exception ex) { PrintException(ex); }
 			finally
