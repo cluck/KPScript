@@ -20,8 +20,12 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
+using System.Reflection;
 using System.Text;
 using System.Windows.Forms;
+
+using Microsoft.Win32;
 
 using KeePass.App;
 using KeePass.Forms;
@@ -53,6 +57,12 @@ namespace KPScript
 
 		[STAThread]
 		public static int Main(string[] args)
+		{
+			AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
+			return MainEx(args);
+		}
+
+		public static int MainEx(string[] args)
 		{
 			if((args == null) || (args.Length == 0))
 			{
@@ -112,8 +122,22 @@ namespace KPScript
 			Console.WriteLine("KPScript - Scripting Plugin");
 			Console.WriteLine(KpsCopyright);
 			Console.WriteLine();
-			Console.WriteLine(PwDefs.ShortProductName + " Runtime: " +
-				PwDefs.VersionString);
+			AppDomain currentDomain = AppDomain.CurrentDomain;
+			Assembly[] assemblies = currentDomain.GetAssemblies();
+			foreach (Assembly assembly in assemblies)
+			{
+				AssemblyName objAssemblyName = assembly.GetName();
+				string aName = objAssemblyName.Name;
+				if (aName == PwDefs.ShortProductName /* || aName == "mscorlib" || */)
+				{
+					Console.WriteLine(String.Format(
+							"{0} Runtime: {1}, File='{2}'",
+							objAssemblyName.Name,
+							objAssemblyName.Version,
+							assembly.ManifestModule.FullyQualifiedName
+					));
+				}
+			}
 		}
 
 		private static void PrintException(Exception ex)
@@ -212,5 +236,74 @@ namespace KPScript
 
 			throw new Exception(KSRes.UnknownCommand);
 		}
+		
+		static Assembly CurrentDomain_AssemblyResolve(object sender, ResolveEventArgs args)
+		{
+			var pathStripChars = new Char[] { ' ', '\\', '/' };
+			var assemblyName = new AssemblyName(args.Name);
+			if (assemblyName.Name == "KeePass")
+			{
+				string kdbxBinary = null;
+				if (File.Exists("KeePass.exe")) {
+					kdbxBinary = "KeePass.exe";
+				} else if (File.Exists(@"bin\KeePass.exe")) {
+					kdbxBinary = @"bin\KeePass.exe";
+				} else if (File.Exists(@"Scripts\KeePass.exe")) {
+					kdbxBinary = @"Scripts\KeePass.exe";
+				}
+				if (kdbxBinary == null)
+				{
+					try
+					{
+						using (var kdbxOpenCommandKey = Registry.LocalMachine.OpenSubKey(
+								@"SOFTWARE\Classes\kdbxfile\shell\open\command")
+							)
+						{
+							if (kdbxOpenCommandKey != null)
+							{
+								string  kdbxOpenCommand = (string) kdbxOpenCommandKey.GetValue("");
+								int i = kdbxOpenCommand.StartsWith("\"") ? 1 : 0;
+								kdbxBinary = kdbxOpenCommand.Split(i==1 ? '"' : ' ')[i];
+								if (!File.Exists(kdbxBinary)) {
+									kdbxBinary = null;
+								}
+							}
+						}
+					}
+					catch (Exception) {
+						kdbxBinary = null;
+					}
+				}
+				if (kdbxBinary == null)
+				{
+					kdbxBinary = Environment.ExpandEnvironmentVariables(@"%ProgramFiles%\KeePass Password Safe 2\KeePass.exe");
+					if (!File.Exists(kdbxBinary)) {
+						kdbxBinary = Environment.ExpandEnvironmentVariables(@"%ProgramFiles(x86)%\KeePass Password Safe 2\KeePass.exe");
+						if (!File.Exists(kdbxBinary)) {
+							kdbxBinary = null;
+						}
+					}
+				}
+				if (kdbxBinary == null)
+				{
+					string[] paths = Environment.GetEnvironmentVariable("PATH").Split(Path.PathSeparator);
+					foreach (string path in paths)
+					{
+						kdbxBinary = path.Trim(pathStripChars) + Path.DirectorySeparatorChar + "KeePass.exe";
+						if (!File.Exists(kdbxBinary)) { kdbxBinary = null; }
+						else { break; }
+					}
+				}
+				if (kdbxBinary != null)
+				{
+					return Assembly.LoadFrom(kdbxBinary);
+				}
+				else
+				{
+					WriteLineColored("E: KeePass.exe not found", ConsoleColor.Red);
+				}
+			}
+			return null;
+        }
 	}
 }
